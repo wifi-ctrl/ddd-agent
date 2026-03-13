@@ -1,0 +1,68 @@
+# ══════════════════════════════════════════════
+#  payment-demo 项目特征配置
+#  Agent 通过此文件了解项目的架构、约定、模板
+# ══════════════════════════════════════════════
+
+name: payment-demo
+language: go
+framework: ""  # 原生 net/http
+description: "游戏支付商城 Demo，DDD + 六边形架构，模块化单体"
+
+project_root: "/Users/lilithgames/charge/example/payment-demo"
+source_root: "internal"
+
+# 构建和测试命令
+build_command: "go build ./..."
+test_command: "go test ./... -v -count=1"
+
+# ── 架构约束 ──
+rules:
+  domain_no_import:
+    - "adapter/"
+    - "handler/"
+    - "application/"
+    - "infra/"
+  application_no_import:
+    - "adapter/"
+    - "handler/"
+    - "infra/"
+  cross_context_only_in:
+    - "adapter/"
+    - "main.go"
+  money_type_required: true
+
+# ── 参考模板（相对于 project_root）──
+# Agent 生成代码前会读这些文件，模仿风格
+templates:
+  domain_event: "internal/payment/domain/event/event.go"
+  domain_model: "internal/payment/domain/model/transaction.go"
+  domain_port: "internal/payment/domain/port/gateway.go"
+  domain_service: "internal/payment/domain/service/validation.go"
+  application: "internal/payment/application/charge_usecase.go"
+  adapter_persistence: "internal/payment/adapter/persistence/memory_repo.go"
+  adapter_gateway: "internal/payment/adapter/catalog/catalog_adapter.go"
+  handler_http: "internal/payment/handler/http/payment_handler.go"
+  composition_root: "main.go"
+
+# ── 项目特有约定（Agent 生成代码时遵守）──
+conventions:
+  - "包名用单数名词（model 不是 models）"
+  - "不用 utils/common/helpers，按职责命名"
+  - "接口由消费方定义（port 在 domain 中）"
+  - "手动依赖注入，不用 DI 框架"
+  - "目录嵌套不超过 3 层"
+  - "金额必须用 Money 值对象（Amount + Currency）"
+  - "InMemory 实现用 sync.RWMutex 保护并发"
+  - "handler 用 http.Error() 处理错误"
+  - "import alias 命名: <context><Layer>（如 couponApp）"
+  - "聚合根包含 Events []event.DomainEvent 字段"
+  - "ClearEvents() 返回事件并清空，由 UseCase 调用"
+
+# ── 从历史代码学到的模式（可持续追加）──
+# 这是 Agent 的「记忆」，随着使用逐渐丰富
+learned_patterns:
+  - "payment 上下文通过 port.CatalogQuery 查商品，不直接 import catalog 的 domain"
+  - "identity 上下文的 AuthMiddleware 把 userID 写入 ctx，其他上下文从 ctx 读取"
+  - "ACL adapter 接收外部上下文的 Repository，内部翻译为本上下文的 View DTO"
+  - "NewPaymentTransaction() 工厂方法设置初始状态为 StatusCreated"
+  - "状态转换方法返回 error，非法转换返回 ErrInvalidStateTransition"
